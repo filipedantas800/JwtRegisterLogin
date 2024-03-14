@@ -2,6 +2,7 @@
 using JwtRegisterLogin.Dtos;
 using JwtRegisterLogin.Models;
 using JwtRegisterLogin.Services.SenhaService;
+using Microsoft.EntityFrameworkCore;
 
 namespace JwtRegisterLogin.Services.AuthService
 {
@@ -56,6 +57,42 @@ namespace JwtRegisterLogin.Services.AuthService
             return respostaServico;
         }
 
+        public async Task<Response<string>> Login(UsuarioLoginDto usuarioLogin)
+        {
+            Response<string> respostaServico = new Response<string>();
+            try
+            {
+                var usuario = await _context.Usuario.FirstOrDefaultAsync(userBanco => userBanco.Email == usuarioLogin.Email);
+
+                if (usuario == null)
+                {
+                    respostaServico.Mensagem = "Credenciais inválidas!";
+                    respostaServico.Status = false;
+                    return respostaServico;
+                }
+
+                if (!_senhaInterface.VerificaSenhaHash(usuarioLogin.Senha, usuario.SenhaHash, usuario.SenhaSalt))
+                {
+                    respostaServico.Mensagem = "Credenciais inválidas!";
+                    respostaServico.Status = false;
+                    return respostaServico;
+                }
+
+                var token = _senhaInterface.CriarToken(usuario);
+
+                respostaServico.Dados = token;
+                respostaServico.Mensagem = "Usuário logado com sucesso!";
+            }
+            catch (Exception ex)
+            {
+
+                respostaServico.Dados = null;
+                respostaServico.Mensagem = ex.Message;
+                respostaServico.Status = false;
+            }
+
+            return respostaServico;
+        }
         public bool VerificaSeEmailUsuarioJaExiste(UsuarioCriacaoDto usuarioRegistro)
         {
             var usuario = _context.Usuario.FirstOrDefault(userBanco => userBanco.Email == usuarioRegistro.Email 
